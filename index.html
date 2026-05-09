@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AA Seat View · URL Builder</title>
+  <meta name="description" content="Quickly generate a direct link to the American Airlines seat map for any flight.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0e10;
+      --surface: #16181c;
+      --surface2: #1e2126;
+      --border: rgba(255,255,255,0.07);
+      --border-strong: rgba(255,255,255,0.14);
+      --text: #f0ede8;
+      --muted: #7a7873;
+      --accent: #c8102e;
+      --accent-dim: rgba(200,16,46,0.15);
+      --amber: #e8a020;
+      --amber-dim: rgba(232,160,32,0.12);
+      --mono: 'DM Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── noise overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── header ── */
+    header {
+      position: relative;
+      z-index: 1;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(200,16,46,0.4); }
+      50% { opacity: 0.8; box-shadow: 0 0 0 5px rgba(200,16,46,0); }
+    }
+
+    .logo-text {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .logo-text strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    /* ── main ── */
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4rem 1.5rem;
+    }
+
+    /* runway lines bg accent */
+    .runway {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 60vh;
+      background: linear-gradient(to bottom, transparent, var(--border));
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .runway::before,
+    .runway::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: inherit;
+    }
+    .runway::before { left: -80px; }
+    .runway::after { left: 80px; }
+
+    /* ── hero ── */
+    .hero {
+      text-align: center;
+      margin-bottom: 3rem;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+
+    h1 em {
+      font-style: normal;
+      color: var(--muted);
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 380px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ── card ── */
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    .card-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+    }
+
+    .card-header-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      margin-left: auto;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.125rem;
+    }
+
+    /* ── form rows ── */
+    .field-row {
+      display: grid;
+      gap: 10px;
+    }
+    .field-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .field-row.cols-3 { grid-template-columns: 1fr auto 1fr; align-items: end; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"] {
+      height: 44px;
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 15px;
+      font-family: var(--mono);
+      color: var(--text);
+      text-transform: uppercase;
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -moz-appearance: textfield;
+      appearance: textfield;
+      color-scheme: dark;
+    }
+
+    input[type="date"] {
+      text-transform: none;
+      cursor: pointer;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    input::placeholder { color: var(--muted); text-transform: none; }
+
+    input:focus {
+      outline: none;
+      border-color: var(--amber);
+      box-shadow: 0 0 0 3px var(--amber-dim);
+    }
+
+    .arrow-sep {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 8px;
+      color: var(--muted);
+    }
+
+    /* ── divider ── */
+    .divider {
+      border: none;
+      border-top: 1px dashed var(--border-strong);
+      margin: 0;
+    }
+
+    /* ── result box ── */
+    .result-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .result-box {
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--muted);
+      word-break: break-all;
+      min-height: 52px;
+      transition: border-color 0.2s;
+    }
+
+    .result-box.has-url {
+      border-color: rgba(232,160,32,0.3);
+    }
+
+    .result-box .base { color: var(--muted); }
+    .result-box .val  { color: var(--amber); }
+    .result-box .key  { color: #5a8fa8; }
+    .result-box .sep  { color: var(--muted); opacity: 0.5; }
+
+    /* ── actions ── */
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button {
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all 0.15s;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    button:not(:disabled):active {
+      transform: scale(0.98);
+    }
+
+    #open-btn:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #open-btn:not(:disabled):hover {
+      background: var(--accent-dim);
+    }
+
+    #copy-btn.copied {
+      border-color: #3a8c5a;
+      color: #5cba82;
+    }
+
+    /* ── svg icons ── */
+    .icon { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+    /* ── footer ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 1.5rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      letter-spacing: 0.04em;
+    }
+
+    footer a {
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 480px) {
+      header { padding: 1rem 1.25rem; }
+      .hero { margin-bottom: 2rem; }
+      .card-body { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a class="logo" href="#">
+      <span class="logo-dot"></span>
+      <span class="logo-text"><strong>AA</strong> Seat View</span>
+    </a>
+    <span style="font-family:'DM Mono',monospace; font-size:11px; color:#3d3f42; letter-spacing:0.06em;">aa.com/seats/view</span>
+  </header>
+
+  <div class="runway"></div>
+
+  <main>
+    <div class="hero">
+      <p class="eyebrow">Flight tool</p>
+      <h1>Seat map<br><em>URL builder</em></h1>
+      <p class="subtitle">Enter your flight details to generate a direct link to the American Airlines seat map.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-header-label">Flight details</span>
+        <span class="status-dot" title="Ready"></span>
+      </div>
+
+      <div class="card-body">
+
+        <div class="field-row cols-2">
+          <div class="field">
+            <label for="fn">Flight number</label>
+            <input type="number" id="fn" placeholder="1" min="1" max="9999" oninput="build()">
+          </div>
+          <div class="field">
+            <!-- spacer -->
+          </div>
+        </div>
+
+        <div class="field-row cols-3">
+          <div class="field">
+            <label for="orig">Origin</label>
+            <input type="text" id="orig" placeholder="JFK" maxlength="3" oninput="this.value=this.value.toUpperCase();build()">
+          </div>
+          <div class="arrow-sep">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+          <div class="field">
+            <label for="dest">Destination</label>
+            <input type="text" id="dest" placeholder="LAX" maxlength="3" oninput="this.value=this.value.toUpperCase();build()">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="date-pick">Departure date</label>
+          <input type="date" id="date-pick" oninput="build()">
+        </div>
+
+        <hr class="divider">
+
+        <div>
+          <p class="result-label">Generated URL</p>
+          <div class="result-box" id="result">Fill in the fields above to generate a link.</div>
+        </div>
+
+        <div class="actions">
+          <button id="copy-btn" onclick="copyUrl()" disabled aria-label="Copy URL">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy URL
+          </button>
+          <button id="open-btn" onclick="openUrl()" disabled aria-label="Open seat map on AA.com">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Open on AA.com
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Not affiliated with American Airlines &nbsp;·&nbsp; <a href="https://www.aa.com" target="_blank" rel="noopener">aa.com</a>
+  </footer>
+
+  <script>
+    let currentUrl = '';
+
+    function build() {
+      const fn   = document.getElementById('fn').value.trim();
+      const orig = document.getElementById('orig').value.trim();
+      const dest = document.getElementById('dest').value.trim();
+      const dateVal = document.getElementById('date-pick').value;
+
+      const box      = document.getElementById('result');
+      const copyBtn  = document.getElementById('copy-btn');
+      const openBtn  = document.getElementById('open-btn');
+
+      let mon = '', day = '';
+      if (dateVal) {
+        const d = new Date(dateVal + 'T00:00:00');
+        mon = d.getMonth() + 1;
+        day = d.getDate();
+      }
+
+      if (!fn || !orig || !dest || !mon || !day || orig.length < 2 || dest.length < 2) {
+        box.classList.remove('has-url');
+        box.innerHTML = 'Fill in the fields above to generate a link.';
+        box.style.color = '';
+        currentUrl = '';
+        copyBtn.disabled = true;
+        openBtn.disabled = true;
+        return;
+      }
+
+      currentUrl = `https://www.aa.com/seats/view?flightNumber=${fn}&departureMonth=${mon}&departureDay=${day}&originAirport=${orig}&destinationAirport=${dest}`;
+
+      box.classList.add('has-url');
+      box.innerHTML =
+        `<span class="base">https://www.aa.com/seats/view?</span>` +
+        `<span class="key">flightNumber</span><span class="sep">=</span><span class="val">${fn}</span><span class="sep">&amp;</span>` +
+        `<span class="key">departureMonth</span><span class="sep">=</span><span class="val">${mon}</span><span class="sep">&amp;</span>` +
+        `<span class="key">departureDay</span><span class="sep">=</span><span class="val">${day}</span><span class="sep">&amp;</span>` +
+        `<span class="key">originAirport</span><span class="sep">=</span><span class="val">${orig}</span><span class="sep">&amp;</span>` +
+        `<span class="key">destinationAirport</span><span class="sep">=</span><span class="val">${dest}</span>`;
+
+      copyBtn.disabled = false;
+      openBtn.disabled = false;
+    }
+
+    function copyUrl() {
+      if (!currentUrl) return;
+      navigator.clipboard.writeText(currentUrl).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2-2v1"/></svg> Copy URL`;
+        }, 2200);
+      });
+    }
+
+    function openUrl() {
+      if (!currentUrl) return;
+      window.open(currentUrl, '_blank', 'noopener,noreferrer');
+    }
+  </script>
+</body>
+</html>
