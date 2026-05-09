@@ -2,7 +2,7 @@
 
 A lightweight, single-file web tool that generates direct links to the [American Airlines interactive seat map](https://www.aa.com/seats/view) for any flight.
 
-**[Live demo →](https://your-username.github.io/your-repo-name)**
+**[Go There →](https://panoramix-services.github.io/aaseats)**
 
 ---
 
